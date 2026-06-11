@@ -8,8 +8,10 @@ import json
 import base64
 import random
 import io
+import asyncio
 import urllib.request
 import urllib.parse
+import edge_tts
 from flask import Flask, request, jsonify, send_file, Response
 
 app = Flask(__name__)
@@ -157,21 +159,31 @@ def get_advice(gender, beauty):
     advice_list = ADVICE_LIBRARY.get(gender, ADVICE_LIBRARY["male"])
     return random.sample(advice_list, min(3, len(advice_list)))
 
-# ========== TTS ==========
-def generate_tts(text):
-    """使用百度TTS API生成语音，返回字节"""
+# ========== TTS (edge-tts 异步库模式) ==========
+async def _tts_async(text):
+    """异步生成TTS音频，返回字节数据"""
     try:
-        token = get_baidu_token()
-        tex = urllib.parse.quote_plus(text)
-        url = f"http://tsn.baidu.com/text2audio?tok={token}&tex={tex}&cuid=mojing-app&ctp=1&lan=zh&spd=5&pit=5&vol=5&aue=3"
-        req = urllib.request.Request(url)
-        with urllib.request.urlopen(req, timeout=15) as r:
-            ct = r.headers.get("Content-Type", "")
-            data = r.read()
-        if "audio" in ct and len(data) > 100:
-            return data
-        print(f"TTS non-audio: ct={ct!r} size={len(data)} data={data[:300]!r}")
+        communicate = edge_tts.Communicate(text, "zh-CN-XiaoxiaoNeural")
+        audio_data = b""
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                audio_data += chunk["data"]
+        print(f"edge-tts generated {len(audio_data)} bytes")
+        return audio_data if len(audio_data) > 500 else None
+    except Exception as e:
+        print(f"edge-tts async error: {e}")
         return None
+
+def generate_tts(text):
+    """同步封装，供Flask路由调用"""
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            audio = loop.run_until_complete(_tts_async(text))
+        finally:
+            loop.close()
+        return audio
     except Exception as e:
         print(f"TTS error: {e}")
         return None

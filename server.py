@@ -4,13 +4,10 @@
 提供人脸检测、颜值评分、TTS功能
 """
 import os
-import sys
 import json
 import base64
 import random
 import io
-import tempfile
-import subprocess
 import urllib.request
 import urllib.parse
 from flask import Flask, request, jsonify, send_file, Response
@@ -162,24 +159,21 @@ def get_advice(gender, beauty):
 
 # ========== TTS ==========
 def generate_tts(text):
-    """使用 edge-tts 生成语音，返回字节"""
-    with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
-        tmp_path = f.name
+    """使用百度TTS API生成语音，返回字节"""
     try:
-        subprocess.run(
-            [sys.executable, "-m", "edge_tts", "--voice", "zh-CN-XiaoxiaoNeural", "--text", text, "--write-media", tmp_path],
-            capture_output=True, timeout=30, check=False
-        )
-        with open(tmp_path, "rb") as f:
-            return f.read()
+        token = get_baidu_token()
+        tex = urllib.parse.quote_plus(text)
+        url = f"https://tsn.baidu.com/text2audio?tok={token}&tex={tex}&cuid=mojing-app&ctp=1&lan=zh&spd=5&pit=5&vol=5&aue=3"
+        req = urllib.request.Request(url)
+        with urllib.request.urlopen(req, timeout=15) as r:
+            ct = r.headers.get("Content-Type", "")
+            data = r.read()
+        if "audio" in ct and len(data) > 100:
+            return data
+        return None
     except Exception as e:
         print(f"TTS error: {e}")
         return None
-    finally:
-        try:
-            os.unlink(tmp_path)
-        except:
-            pass
 
 # ========== 路由 ==========
 @app.after_request

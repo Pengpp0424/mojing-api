@@ -8,10 +8,9 @@ import json
 import base64
 import random
 import io
-import asyncio
 import urllib.request
 import urllib.parse
-import edge_tts
+from gtts import gTTS
 from flask import Flask, request, jsonify, send_file, Response
 
 app = Flask(__name__)
@@ -159,33 +158,22 @@ def get_advice(gender, beauty):
     advice_list = ADVICE_LIBRARY.get(gender, ADVICE_LIBRARY["male"])
     return random.sample(advice_list, min(3, len(advice_list)))
 
-# ========== TTS (edge-tts 异步库模式) ==========
-async def _tts_async(text):
-    """异步生成TTS音频，返回字节数据"""
-    try:
-        communicate = edge_tts.Communicate(text, "zh-CN-XiaoxiaoNeural")
-        audio_data = b""
-        async for chunk in communicate.stream():
-            if chunk["type"] == "audio":
-                audio_data += chunk["data"]
-        print(f"edge-tts generated {len(audio_data)} bytes")
-        return audio_data if len(audio_data) > 500 else None
-    except Exception as e:
-        print(f"edge-tts async error: {e}")
-        return None
-
+# ========== TTS (gTTS 模式) ==========
 def generate_tts(text):
-    """同步封装，供Flask路由调用"""
+    """使用 gTTS 生成语音，返回字节"""
     try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            audio = loop.run_until_complete(_tts_async(text))
-        finally:
-            loop.close()
-        return audio
+        import sys
+        mp3_fp = io.BytesIO()
+        tts = gTTS(text=text, lang='zh-cn', slow=False)
+        tts.write_to_fp(mp3_fp)
+        mp3_fp.seek(0)
+        audio = mp3_fp.read()
+        print(f"gTTS generated {len(audio)} bytes", file=sys.stderr)
+        return audio if len(audio) > 1000 else None
     except Exception as e:
-        print(f"TTS error: {e}")
+        import sys, traceback
+        print(f"TTS error: {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
         return None
 
 # ========== 路由 ==========

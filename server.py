@@ -4,6 +4,7 @@
 提供人脸检测、颜值评分、TTS功能
 """
 import os
+import sys
 import json
 import base64
 import random
@@ -166,8 +167,8 @@ def generate_tts(text):
         tmp_path = f.name
     try:
         subprocess.run(
-            ["edge-tts", "--voice", "zh-CN-XiaoxiaoNeural", "--text", text, "--write-media", tmp_path],
-            capture_output=True, timeout=30, check=True
+            [sys.executable, "-m", "edge_tts", "--voice", "zh-CN-XiaoxiaoNeural", "--text", text, "--write-media", tmp_path],
+            capture_output=True, timeout=30, check=False
         )
         with open(tmp_path, "rb") as f:
             return f.read()

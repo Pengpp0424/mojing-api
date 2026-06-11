@@ -163,7 +163,7 @@ def generate_tts(text):
     try:
         token = get_baidu_token()
         tex = urllib.parse.quote_plus(text)
-        url = f"https://tsn.baidu.com/text2audio?tok={token}&tex={tex}&cuid=mojing-app&ctp=1&lan=zh&spd=5&pit=5&vol=5&aue=3"
+        url = f"http://tsn.baidu.com/text2audio?tok={token}&tex={tex}&cuid=mojing-app&ctp=1&lan=zh&spd=5&pit=5&vol=5&aue=3"
         req = urllib.request.Request(url)
         with urllib.request.urlopen(req, timeout=15) as r:
             ct = r.headers.get("Content-Type", "")

@@ -170,6 +170,7 @@ def generate_tts(text):
             data = r.read()
         if "audio" in ct and len(data) > 100:
             return data
+        print(f"TTS non-audio: ct={ct!r} size={len(data)} data={data[:300]!r}")
         return None
     except Exception as e:
         print(f"TTS error: {e}")
